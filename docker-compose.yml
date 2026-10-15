@@ -2,9 +2,10 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: taskhub
-      POSTGRES_PASSWORD: taskhub
-      POSTGRES_DB: taskhub
+      # docker compose tự đọc .env cùng thư mục; mật khẩu chỉ nằm trong .env (không commit)
+      POSTGRES_USER: ${POSTGRES_USER:-taskhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: ${POSTGRES_DB:-taskhub}
     ports:
       - "5432:5432"          # để app chạy ngoài Docker nối vào localhost:5432
     volumes:
