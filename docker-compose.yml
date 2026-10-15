@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskhub
+      POSTGRES_PASSWORD: taskhub
+      POSTGRES_DB: taskhub
+    ports:
+      - "5432:5432"          # để app chạy ngoài Docker nối vào localhost:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # dữ liệu sống qua lần restart container
+volumes:
+  pgdata:
