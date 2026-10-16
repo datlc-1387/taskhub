@@ -10,6 +10,10 @@ class WorkspaceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
 
+class WorkspaceUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+
+
 class WorkspaceResponse(ORMModel):
     id: UUID
     name: str
