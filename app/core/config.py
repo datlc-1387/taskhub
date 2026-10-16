@@ -11,8 +11,10 @@ class Settings(BaseSettings):
 
     app_name: str = "TaskHub API"
     debug: bool = False
+    api_v1_prefix: str = "/api/v1"
 
     database_url: str = "postgresql+asyncpg://taskhub:taskhub@localhost:5432/taskhub"
+    db_echo: bool = False
 
 
 @lru_cache
