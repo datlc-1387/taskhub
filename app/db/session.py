@@ -19,3 +19,14 @@ def create_engine(url: str, echo: bool = False) -> AsyncEngine:
 
 settings = get_settings()
 engine = create_engine(settings.database_url, settings.db_echo)
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

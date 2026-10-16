@@ -1,8 +1,10 @@
+from uuid import UUID
+
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/labels", tags=["Labels"])
 
 
-@router.get("")
-async def demo():
+@router.patch("/{label_id}")
+async def update_label(label_id: UUID) -> str:
     return "demo"

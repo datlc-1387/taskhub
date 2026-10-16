@@ -4,5 +4,5 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 @router.get("")
-async def demo():
+async def demo() -> str:
     return "demo"

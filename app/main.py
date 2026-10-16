@@ -5,15 +5,20 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.exceptions import register_exception_handlers
+from app.core.logging import setup_logging
 from app.db.session import engine
 
 settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    yield
-    await engine.dispose()
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        setup_logging(settings.debug)
+        yield
+    finally:
+        await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -46,6 +51,7 @@ def create_app() -> FastAPI:
         ],
     )
 
+    register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 
     @app.get("/health", tags=["System"])
