@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger("taskhub.errors")
@@ -49,6 +50,17 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code, content=error_body(exc.code, exc.message, exc.details)
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+        details = [
+            {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
+            for err in exc.errors()
+        ]
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content=error_body("validation_error", "Invalid data", details),
         )
 
     @app.exception_handler(Exception)
