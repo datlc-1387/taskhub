@@ -47,9 +47,7 @@ class Task(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Enum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False
     )
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_by: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False
-    )
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="tasks")
     assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id])

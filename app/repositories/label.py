@@ -13,3 +13,13 @@ class LabelRepository(BaseRepository[Label]):
     async def list_by_project(self, project_id: UUID) -> Sequence[Label]:
         stmt = select(Label).where(Label.project_id == project_id).order_by(Label.name)
         return (await self.db.scalars(stmt)).all()
+
+    async def get_many_in_project(self, label_ids: list[UUID], project_id: UUID) -> Sequence[Label]:
+        if not label_ids:
+            return []
+        stmt = (
+            select(Label)
+            .where(Label.id.in_(label_ids), Label.project_id == project_id)
+            .order_by(Label.name)
+        )
+        return (await self.db.scalars(stmt)).all()

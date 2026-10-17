@@ -3,8 +3,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenError, NotFoundError
-from app.models import Project, User, UserRole, Workspace, WorkspaceRole
+from app.models import Project, Task, User, UserRole, Workspace, WorkspaceRole
 from app.repositories.project import ProjectRepository
+from app.repositories.task import TaskRepository
 from app.repositories.workspace import WorkspaceRepository
 
 ROLE_RANK: dict[WorkspaceRole, int] = {
@@ -19,6 +20,7 @@ class PermissionService:
         self.db = db
         self.workspaces = WorkspaceRepository(db)
         self.projects = ProjectRepository(db)
+        self.tasks = TaskRepository(db)
 
     async def role_in_workspace(self, workspace_id: UUID, user: User) -> WorkspaceRole | None:
         if user.role == UserRole.ADMIN:
@@ -48,3 +50,12 @@ class PermissionService:
             raise NotFoundError(f"Project {project_id} does not exist.")
         await self.require_workspace(project.workspace_id, user, min_role)
         return project
+
+    async def require_task(
+        self, task_id: UUID, user: User, min_role: WorkspaceRole = WorkspaceRole.VIEWER
+    ) -> Task:
+        task = await self.tasks.get_with_project(task_id)
+        if task is None:
+            raise NotFoundError(f"Task {task_id} does not exist.")
+        await self.require_workspace(task.project.workspace_id, user, min_role)
+        return task
