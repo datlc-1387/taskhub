@@ -70,5 +70,7 @@ class TaskService:
         labels = list(await self.labels.get_many_in_project(label_ids, project_id))
         missing = set(label_ids) - {label.id for label in labels}
         if missing:
-            raise NotFoundError(f"Label {sorted(missing)} do not belong to the project")
+            raise NotFoundError(
+                f"Label {', '.join(str(x) for x in sorted(missing))} do not belong to the project"
+            )
         return labels
