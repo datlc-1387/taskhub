@@ -1,20 +1,26 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.exceptions import ForbiddenError, UnauthorizedError
+from app.core.security import decode_token
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories.user import UserRepository
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
 
 
-async def get_current_user(db: DbSession) -> User:
-    # TODO: get user from token payload
-    user = await UserRepository(db).get(UUID("a4d060c4-f7e8-4f90-802c-f17f64433763"))
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
+    try:
+        payload = decode_token(token, expected_type="access")
+    except ValueError as exc:
+        raise UnauthorizedError(str(exc)) from exc
+    user = await UserRepository(db).get(payload.user_id)
     if user is None:
         raise UnauthorizedError("User doesn't exist.")
     if not user.is_active:
