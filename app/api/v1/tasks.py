@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas.comment import CommentCreate, CommentResponse
@@ -18,9 +18,11 @@ async def get_task(task_id: UUID, user: CurrentUser, db: DbSession) -> TaskRespo
 
 @router.patch("/{task_id}", response_model=TaskResponse)
 async def update_task(
-    task_id: UUID, data: TaskUpdate, user: CurrentUser, db: DbSession
+    task_id: UUID, data: TaskUpdate, background: BackgroundTasks, user: CurrentUser, db: DbSession
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).update(task_id, data, user))
+    return TaskResponse.model_validate(
+        await TaskService(db).update(task_id, data, user, background)
+    )
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

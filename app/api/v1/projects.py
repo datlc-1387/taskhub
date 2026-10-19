@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.deps import CurrentUser, DbSession, PageParams, TaskFilterParams
 from app.schemas.common import Page
@@ -51,9 +51,15 @@ async def list_tasks(
     "/{project_id}/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_task(
-    project_id: UUID, data: TaskCreate, user: CurrentUser, db: DbSession
+    project_id: UUID,
+    data: TaskCreate,
+    background: BackgroundTasks,
+    user: CurrentUser,
+    db: DbSession,
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).create(project_id, data, user))
+    return TaskResponse.model_validate(
+        await TaskService(db).create(project_id, data, user, background)
+    )
 
 
 @router.get("/{project_id}/labels", response_model=list[LabelResponse])
