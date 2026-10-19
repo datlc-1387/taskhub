@@ -31,6 +31,11 @@ async def delete_project(project_id: UUID, user: CurrentUser, db: DbSession) -> 
     await ProjectService(db).delete(project_id, user)
 
 
+@router.post("/{project_id}/archive", response_model=ProjectResponse)
+async def archive_project(project_id: UUID, user: CurrentUser, db: DbSession) -> ProjectResponse:
+    return ProjectResponse.model_validate(await ProjectService(db).archive(project_id, user))
+
+
 @router.get(
     "/{project_id}/tasks",
     response_model=Page[TaskResponse],

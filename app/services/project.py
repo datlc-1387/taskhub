@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Project, User, WorkspaceRole
+from app.models import Project, ProjectStatus, User, WorkspaceRole
 from app.repositories.project import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.services.permissions import PermissionService
@@ -35,3 +35,9 @@ class ProjectService:
     async def delete(self, project_id: UUID, user: User) -> None:
         project = await self.perms.require_project(project_id, user, WorkspaceRole.OWNER)
         await self.repo.delete(project)
+
+    async def archive(self, project_id: UUID, user: User) -> Project:
+        project = await self.perms.require_project(project_id, user, WorkspaceRole.EDITOR)
+        project.status = ProjectStatus.ARCHIVED
+        await self.db.flush()
+        return project
