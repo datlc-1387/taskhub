@@ -56,3 +56,6 @@ class TaskFilter:
     status: TaskStatus | None
     priority: TaskPriority | None
     assignee_id: UUID | None
+
+    def cache_key(self) -> str:
+        return f"{self.status or '-'}:{self.priority or '-'}:{self.assignee_id or '-'}"
