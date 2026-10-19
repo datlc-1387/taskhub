@@ -1,14 +1,72 @@
+# Local development infrastructure: PostgreSQL, Redis, Mailpit.
+# Secrets are read from .env (not committed); compose aborts if a required variable is missing.
+name: taskhub
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true # block privilege escalation (setuid/sudo) inside containers
+
 services:
   db:
-    image: postgres:16-alpine
+    <<: *hardening
+    image: postgres:16.15-alpine # pinned so every machine runs the same version
     environment:
-      # docker compose tự đọc .env cùng thư mục; mật khẩu chỉ nằm trong .env (không commit)
       POSTGRES_USER: ${POSTGRES_USER:-taskhub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Missing POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-taskhub}
     ports:
-      - "5432:5432"          # để app chạy ngoài Docker nối vào localhost:5432
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data   # dữ liệu sống qua lần restart container
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+
+  redis:
+    <<: *hardening
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?Missing REDIS_PASSWORD in .env}
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru # cache only: evict least recently used keys when full
+      - --save
+      - "" # no persistence needed for a cache
+      - --appendonly
+      - "no"
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD} # lets redis-cli authenticate without exposing the password in argv
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 192m
+
+  mailpit:
+    <<: *hardening
+    image: axllent/mailpit:v1.31
+    environment:
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH:?Missing MAILPIT_UI_AUTH (user:password) in .env}
+      MP_MAX_MESSAGES: 500 # keep at most 500 messages, older ones are pruned
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # web UI: http://localhost:8025
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 128m
+
 volumes:
   pgdata:
