@@ -2,7 +2,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, PageParams, TaskFilterParams
+from app.schemas.common import Page
 from app.schemas.label import LabelCreate, LabelResponse
 from app.schemas.project import ProjectResponse, ProjectUpdate
 from app.schemas.task import TaskCreate, TaskResponse
@@ -32,11 +33,13 @@ async def delete_project(project_id: UUID, user: CurrentUser, db: DbSession) -> 
 
 @router.get(
     "/{project_id}/tasks",
-    response_model=list[TaskResponse],
-    # summary="Danh sách task: lọc theo status/priority/assignee, phân trang, có cache",
+    response_model=Page[TaskResponse],
+    summary="List task: filter by status/priority/assignee, pagination",
 )
-async def list_tasks(project_id: UUID, user: CurrentUser, db: DbSession) -> list[TaskResponse]:
-    return await TaskService(db).list_in_project(project_id, user)
+async def list_tasks(
+    project_id: UUID, filters: TaskFilterParams, page: PageParams, user: CurrentUser, db: DbSession
+) -> Page[TaskResponse]:
+    return await TaskService(db).list_in_project(project_id, filters, page, user)
 
 
 @router.post(
