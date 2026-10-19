@@ -25,9 +25,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         description=(
-            "Task Management API — demo project cho khóa FastAPI (Sun* Python tech stack).\n\n"
-            "Đăng nhập tại `POST /api/v1/auth/login` (form-data) rồi bấm **Authorize** "
-            "để thử các API cần token."
+            "Task Management API — demo project cho FastAPI.\n\n"
+            "Log in via `POST /api/v1/auth/login` (form-data), then click **Authorize** "
+            "to test APIs that require a token."
         ),
         version="1.0.0",
         lifespan=lifespan,
@@ -35,19 +35,22 @@ def create_app() -> FastAPI:
             {"name": "System", "description": "Health check"},
             {
                 "name": "Auth",
-                "description": "Đăng ký, đăng nhập, refresh/logout bằng JWT",
+                "description": "Register, Login, refresh/logout using JWT",
             },
-            {"name": "Users", "description": "Hồ sơ cá nhân"},
+            {"name": "Users", "description": "Personal Profile"},
             {
                 "name": "Workspaces",
-                "description": "Workspace, thành viên và project bên trong",
+                "description": "Workspaces, members, and the projects within them",
             },
             {
                 "name": "Projects",
-                "description": "Project, task list (filter, phân trang, cache), label",
+                "description": "Project, Task list (filter, pagination, cache), Label",
             },
-            {"name": "Tasks", "description": "Task chi tiết, gán label, comment"},
-            {"name": "Labels", "description": "Sửa/xóa label"},
+            {
+                "name": "Tasks",
+                "description": "Detailed tasks, assigning labels, and adding comments",
+            },
+            {"name": "Labels", "description": "Update/Delete label"},
         ],
     )
 

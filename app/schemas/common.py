@@ -26,3 +26,12 @@ class Page[T](BaseModel):
 
 class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+def check_password_bytes(value: str) -> str:
+    if len(value.encode("utf-8")) > 72:
+        raise ValueError(
+            "Maximum password length is 72 bytes (approximately 72 unaccented characters)"
+        )
+
+    return value
