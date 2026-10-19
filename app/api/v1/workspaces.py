@@ -4,7 +4,14 @@ from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas.project import ProjectCreate, ProjectResponse
-from app.schemas.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
+from app.schemas.workspace import (
+    MemberAdd,
+    MemberResponse,
+    MemberUpdate,
+    WorkspaceCreate,
+    WorkspaceResponse,
+    WorkspaceUpdate,
+)
 from app.services.project import ProjectService
 from app.services.workspace import WorkspaceService
 
@@ -26,7 +33,9 @@ async def list_workspaces(user: CurrentUser, db: DbSession) -> list[WorkspaceRes
 
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
 async def get_workspace(workspace_id: UUID, user: CurrentUser, db: DbSession) -> WorkspaceResponse:
-    return WorkspaceResponse.model_validate(await WorkspaceService(db).get(workspace_id, user))
+    return WorkspaceResponse.model_validate(
+        await WorkspaceService(db).get_workspace(workspace_id, user)
+    )
 
 
 @router.patch("/{workspace_id}", response_model=WorkspaceResponse)
@@ -41,6 +50,36 @@ async def update_workspace(
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workspace(workspace_id: UUID, user: CurrentUser, db: DbSession) -> None:
     await WorkspaceService(db).delete(workspace_id, user)
+
+
+@router.get("/{workspace_id}/members", response_model=list[MemberResponse])
+async def list_members(
+    workspace_id: UUID, user: CurrentUser, db: DbSession
+) -> list[MemberResponse]:
+    return await WorkspaceService(db).list_members(workspace_id, user)
+
+
+@router.post(
+    "/{workspace_id}/members", response_model=MemberResponse, status_code=status.HTTP_201_CREATED
+)
+async def add_member(
+    workspace_id: UUID, data: MemberAdd, user: CurrentUser, db: DbSession
+) -> MemberResponse:
+    return await WorkspaceService(db).add_member(workspace_id, data, user)
+
+
+@router.patch("/{workspace_id}/members/{member_id}", response_model=MemberResponse)
+async def update_member(
+    workspace_id: UUID, member_id: UUID, data: MemberUpdate, user: CurrentUser, db: DbSession
+) -> MemberResponse:
+    return await WorkspaceService(db).update_member(workspace_id, member_id, data, user)
+
+
+@router.delete("/{workspace_id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member(
+    workspace_id: UUID, member_id: UUID, user: CurrentUser, db: DbSession
+) -> None:
+    await WorkspaceService(db).remove_member(workspace_id, member_id, user)
 
 
 @router.get("/{workspace_id}/projects", response_model=list[ProjectResponse])
