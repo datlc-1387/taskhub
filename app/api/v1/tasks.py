@@ -28,6 +28,20 @@ async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession) -> None:
     await TaskService(db).delete(task_id, user)
 
 
+@router.post("/{task_id}/labels/{label_id}", response_model=TaskResponse)
+async def add_label(
+    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession
+) -> TaskResponse:
+    return TaskResponse.model_validate(await TaskService(db).add_label(task_id, label_id, user))
+
+
+@router.delete("/{task_id}/labels/{label_id}", response_model=TaskResponse)
+async def remove_label(
+    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession
+) -> TaskResponse:
+    return TaskResponse.model_validate(await TaskService(db).remove_label(task_id, label_id, user))
+
+
 @router.get("/{task_id}/comments", response_model=list[CommentResponse])
 async def get_comments(task_id: UUID, user: CurrentUser, db: DbSession) -> list[CommentResponse]:
     items = await CommentService(db).list_for_task(task_id, user)
@@ -41,3 +55,8 @@ async def add_comment(
     task_id: UUID, data: CommentCreate, user: CurrentUser, db: DbSession
 ) -> CommentResponse:
     return CommentResponse.model_validate(await CommentService(db).add(task_id, data, user))
+
+
+@router.delete("/{task_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_comment(task_id: UUID, comment_id: UUID, user: CurrentUser, db: DbSession) -> None:
+    await CommentService(db).delete(task_id, comment_id, user)

@@ -71,6 +71,22 @@ class TaskService:
             raise ForbiddenError("Only EDITOR/OWNER or the creator can delete the task")
         await self.repo.delete(task)
 
+    async def add_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
+        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
+        label = await self._label_in_project(label_id, task.project_id)
+        if label not in task.labels:
+            task.labels.append(label)
+            await self.db.flush()
+        return task
+
+    async def remove_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
+        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
+        label = await self._label_in_project(label_id, task.project_id)
+        if label in task.labels:
+            task.labels.remove(label)
+            await self.db.flush()
+        return task
+
     async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> None:
         if await self.workspaces.get_member(workspace_id, user_id) is None:
             raise NotFoundError(f"User {user_id} is not a member of the workspace")
@@ -83,3 +99,9 @@ class TaskService:
                 f"Label {', '.join(str(x) for x in sorted(missing))} do not belong to the project"
             )
         return labels
+
+    async def _label_in_project(self, label_id: UUID, project_id: UUID) -> Label:
+        label = await self.labels.get(label_id)
+        if label is None or label.project_id != project_id:
+            raise NotFoundError(f"Label {label_id} does not belong to the project")
+        return label
