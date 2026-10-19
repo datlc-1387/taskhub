@@ -1,6 +1,10 @@
+from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+from app.models import TaskPriority, TaskStatus
 
 
 class ErrorDetail(BaseModel):
@@ -35,3 +39,20 @@ def check_password_bytes(value: str) -> str:
         )
 
     return value
+
+
+@dataclass(frozen=True)
+class Pagination:
+    page: int
+    limit: int
+
+    @property
+    def offset(self) -> int:
+        return (self.page - 1) * self.limit
+
+
+@dataclass(frozen=True)
+class TaskFilter:
+    status: TaskStatus | None
+    priority: TaskPriority | None
+    assignee_id: UUID | None

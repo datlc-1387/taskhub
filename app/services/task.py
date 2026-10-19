@@ -7,6 +7,7 @@ from app.models import Label, Task, User, UserRole, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
 from app.repositories.workspace import WorkspaceRepository
+from app.schemas.common import Page, Pagination, TaskFilter
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.services.permissions import PermissionService
 
@@ -19,10 +20,18 @@ class TaskService:
         self.workspaces = WorkspaceRepository(db)
         self.labels = LabelRepository(db)
 
-    async def list_in_project(self, project_id: UUID, user: User) -> list[TaskResponse]:
+    async def list_in_project(
+        self, project_id: UUID, filters: TaskFilter, page: Pagination, user: User
+    ) -> Page[TaskResponse]:
         await self.perms.require_project(project_id, user)
-        items = await self.repo.list_by_project(project_id)
-        return [TaskResponse.model_validate(task) for task in items]
+        items, total = await self.repo.list_by_project(project_id, filters, page)
+        result = Page[TaskResponse](
+            items=[TaskResponse.model_validate(t) for t in items],
+            total=total,
+            page=page.page,
+            limit=page.limit,
+        )
+        return result
 
     async def create(self, project_id: UUID, data: TaskCreate, user: User) -> Task:
         project = await self.perms.require_project(project_id, user, WorkspaceRole.EDITOR)
