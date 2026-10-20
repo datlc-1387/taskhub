@@ -39,12 +39,16 @@ async def login(
 @router.post(
     "/refresh",
     response_model=TokenResponse,
-    responses={401: {"model": ErrorResponse, "description": "Refresh token expired / revoked"}},
+    responses={401: {"model": ErrorResponse, "description": "Refresh token invalid or revoked"}},
 )
 async def refresh(data: RefreshRequest, db: DbSession) -> TokenResponse:
     return TokenResponse.model_validate(await AuthService(db).refresh(data.refresh_token))
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"model": ErrorResponse, "description": "Refresh token invalid or revoked"}},
+)
 async def logout(data: RefreshRequest, db: DbSession) -> None:
     await AuthService(db).logout(data.refresh_token)

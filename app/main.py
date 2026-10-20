@@ -7,6 +7,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
+from app.core.openapi import install_error_responses
 from app.db.session import engine
 
 settings = get_settings()
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+    install_error_responses(app)
 
     @app.get("/health", tags=["System"])
     async def health_check() -> dict[str, str]:
