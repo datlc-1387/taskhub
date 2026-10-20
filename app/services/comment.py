@@ -21,13 +21,13 @@ class CommentService:
         return list(await self.repo.list_by_task(task_id))
 
     async def add(self, task_id: UUID, data: CommentCreate, user: User) -> Comment:
-        await self.perms.require_task(task_id, user)
+        await self.perms.require_task(task_id, user, writable=True)
         return await self.repo.add(
             Comment(task_id=task_id, author_id=user.id, content=data.content)
         )
 
     async def delete(self, task_id: UUID, comment_id: UUID, user: User) -> None:
-        _, role = await self.perms.require_task_with_role(task_id, user)
+        _, role = await self.perms.require_task_with_role(task_id, user, writable=True)
         comment = await self.repo.get(comment_id)
         if comment is None or comment.task_id != task_id:
             raise NotFoundError(messages.COMMENT_NOT_FOUND.format(comment_id=comment_id))

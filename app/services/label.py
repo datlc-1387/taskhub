@@ -24,7 +24,7 @@ class LabelService:
         return list(await self.repo.list_by_project(project_id))
 
     async def create(self, project_id: UUID, data: LabelCreate, user: User) -> Label:
-        await self.perms.require_project(project_id, user, WorkspaceRole.EDITOR)
+        await self.perms.require_project(project_id, user, WorkspaceRole.EDITOR, writable=True)
         return await self.repo.add(Label(project_id=project_id, **data.model_dump()))
 
     async def update(self, label_id: UUID, data: LabelUpdate, user: User) -> Label:
@@ -44,5 +44,7 @@ class LabelService:
         label = await self.repo.get(label_id)
         if label is None:
             raise NotFoundError(messages.LABEL_NOT_FOUND.format(label_id=label_id))
-        await self.perms.require_project(label.project_id, user, WorkspaceRole.EDITOR)
+        await self.perms.require_project(
+            label.project_id, user, WorkspaceRole.EDITOR, writable=True
+        )
         return label
