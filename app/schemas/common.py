@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 from app.core import messages
 from app.core.constants import PASSWORD_MAX_LENGTH
-from app.models import TaskPriority, TaskStatus
 
 
 class ErrorDetail(BaseModel):
@@ -49,13 +47,3 @@ class Pagination:
     @property
     def offset(self) -> int:
         return (self.page - 1) * self.limit
-
-
-@dataclass(frozen=True)
-class TaskFilter:
-    status: TaskStatus | None
-    priority: TaskPriority | None
-    assignee_id: UUID | None
-
-    def cache_key(self) -> str:
-        return f"{self.status or '-'}:{self.priority or '-'}:{self.assignee_id or '-'}"

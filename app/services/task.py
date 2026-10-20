@@ -12,8 +12,8 @@ from app.models import Label, Task, User, UserRole, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
 from app.repositories.workspace import WorkspaceRepository
-from app.schemas.common import Page, Pagination, TaskFilter
-from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.schemas.common import Page, Pagination
+from app.schemas.task import TaskCreate, TaskFilter, TaskResponse, TaskUpdate
 from app.services.notifications import send_assignment_email
 from app.services.permissions import PermissionService
 

@@ -14,7 +14,8 @@ from app.core.security import decode_token
 from app.db.session import get_db
 from app.models import TaskPriority, TaskStatus, User, UserRole
 from app.repositories.user import UserRepository
-from app.schemas.common import Pagination, TaskFilter
+from app.schemas.common import Pagination
+from app.schemas.task import TaskFilter
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
