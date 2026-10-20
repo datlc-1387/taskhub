@@ -11,9 +11,10 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.models import Label, Task, User, UserRole, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
+from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
-from app.schemas.common import Page, Pagination, TaskFilter
-from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.schemas.common import Page, Pagination
+from app.schemas.task import TaskCreate, TaskFilter, TaskResponse, TaskUpdate
 from app.services.notifications import send_assignment_email
 from app.services.permissions import PermissionService
 
@@ -29,6 +30,7 @@ class TaskService:
         self.repo = TaskRepository(db)
         self.perms = PermissionService(db)
         self.workspaces = WorkspaceRepository(db)
+        self.users = UserRepository(db)
         self.labels = LabelRepository(db)
 
     async def list_in_project(
@@ -137,6 +139,6 @@ class TaskService:
 
     async def _notify_assignee(self, task: Task, actor: User, background: BackgroundTasks) -> None:
         assert task.assignee_id is not None
-        assignee = await self.workspaces.get_user(task.assignee_id)
+        assignee = await self.users.get(task.assignee_id)
         if assignee is not None:
             background.add_task(send_assignment_email, assignee.email, task.title, actor.full_name)

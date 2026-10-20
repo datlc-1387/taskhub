@@ -19,7 +19,6 @@ PASSWORD_TOO_LONG = (
     "Maximum password length is {max_bytes} bytes (approximately {max_bytes} unaccented characters)"
 )
 ACCOUNT_LOCKED = "The account has been locked"
-ADMIN_REQUIRED = "Only an ADMIN can perform this action"
 TOKEN_USER_NOT_FOUND = "User doesn't exist"
 USER_NOT_FOUND = "User {user_id} doesn't exist"
 
@@ -28,7 +27,6 @@ WORKSPACE_NOT_FOUND = "Workspace {workspace_id} does not exist"
 ROLE_REQUIRED = "Requires the {role} role or higher within the workspace"
 USER_NOT_MEMBER = "User {user_id} is not a member of the workspace"
 USER_ALREADY_MEMBER = "User is already a member"
-CANNOT_GRANT_OWNER = "Cannot grant OWNER role to another member"
 CANNOT_CHANGE_OWNER_ROLE = "Cannot change OWNER role"
 CANNOT_CHANGE_WORKSPACE_OWNER = "Cannot change or remove the workspace owner"
 

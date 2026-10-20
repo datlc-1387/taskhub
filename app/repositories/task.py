@@ -6,19 +6,15 @@ from sqlalchemy.orm import joinedload
 
 from app.models import Task
 from app.repositories.base import BaseRepository
-from app.schemas.common import Pagination, TaskFilter
+from app.schemas.common import Pagination
+from app.schemas.task import TaskFilter
 
 
 class TaskRepository(BaseRepository[Task]):
     model = Task
 
     async def get_with_project(self, task_id: UUID) -> Task | None:
-        stmt = (
-            select(Task)
-            .options(joinedload(Task.project))
-            .where(Task.id == task_id)
-            .order_by(Task.created_at)
-        )
+        stmt = select(Task).options(joinedload(Task.project)).where(Task.id == task_id)
         return await self.db.scalar(stmt)
 
     async def list_by_project(
@@ -38,7 +34,7 @@ class TaskRepository(BaseRepository[Task]):
             .where(*conditions)
             .offset(page.offset)
             .limit(page.limit)
-            .order_by(Task.created_at.desc())
+            .order_by(Task.created_at.desc(), Task.id)
         )
         items = (await self.db.scalars(stmt)).all()
         return items, total or 0

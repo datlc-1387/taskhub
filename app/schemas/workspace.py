@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -25,11 +26,11 @@ class WorkspaceResponse(ORMModel):
 
 class MemberAdd(BaseModel):
     user_id: UUID
-    role: WorkspaceRole = WorkspaceRole.VIEWER
+    role: Literal[WorkspaceRole.EDITOR, WorkspaceRole.VIEWER] = WorkspaceRole.VIEWER
 
 
 class MemberUpdate(BaseModel):
-    role: WorkspaceRole
+    role: Literal[WorkspaceRole.EDITOR, WorkspaceRole.VIEWER]
 
 
 class MemberResponse(ORMModel):
