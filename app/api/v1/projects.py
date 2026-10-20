@@ -1,8 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
-from app.api.deps import CurrentUser, DbSession, PageParams, TaskFilterParams
+from app.api.deps import Cache, CurrentUser, DbSession, PageParams, TaskFilterParams
 from app.schemas.common import Page
 from app.schemas.label import LabelCreate, LabelResponse
 from app.schemas.project import ProjectResponse, ProjectUpdate
@@ -42,23 +42,37 @@ async def archive_project(project_id: UUID, user: CurrentUser, db: DbSession) ->
     summary="List task: filter by status/priority/assignee, pagination",
 )
 async def list_tasks(
-    project_id: UUID, filters: TaskFilterParams, page: PageParams, user: CurrentUser, db: DbSession
+    project_id: UUID,
+    filters: TaskFilterParams,
+    page: PageParams,
+    user: CurrentUser,
+    db: DbSession,
+    cache: Cache,
 ) -> Page[TaskResponse]:
-    return await TaskService(db).list_in_project(project_id, filters, page, user)
+    return await TaskService(db, cache).list_in_project(project_id, filters, page, user)
 
 
 @router.post(
     "/{project_id}/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_task(
-    project_id: UUID, data: TaskCreate, user: CurrentUser, db: DbSession
+    project_id: UUID,
+    data: TaskCreate,
+    background: BackgroundTasks,
+    user: CurrentUser,
+    db: DbSession,
+    cache: Cache,
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).create(project_id, data, user))
+    return TaskResponse.model_validate(
+        await TaskService(db, cache).create(project_id, data, user, background)
+    )
 
 
 @router.get("/{project_id}/labels", response_model=list[LabelResponse])
-async def list_labels(project_id: UUID, user: CurrentUser, db: DbSession) -> list[LabelResponse]:
-    items = await LabelService(db).list_in_project(project_id, user)
+async def list_labels(
+    project_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
+) -> list[LabelResponse]:
+    items = await LabelService(db, cache).list_in_project(project_id, user)
     return [LabelResponse.model_validate(label) for label in items]
 
 
@@ -66,6 +80,8 @@ async def list_labels(project_id: UUID, user: CurrentUser, db: DbSession) -> lis
     "/{project_id}/labels", response_model=LabelResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_label(
-    project_id: UUID, data: LabelCreate, user: CurrentUser, db: DbSession
+    project_id: UUID, data: LabelCreate, user: CurrentUser, db: DbSession, cache: Cache
 ) -> LabelResponse:
-    return LabelResponse.model_validate(await LabelService(db).create(project_id, data, user))
+    return LabelResponse.model_validate(
+        await LabelService(db, cache).create(project_id, data, user)
+    )

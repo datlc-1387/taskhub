@@ -5,6 +5,7 @@ from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import CacheBackend, get_cache
 from app.core.config import get_settings
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
@@ -15,6 +16,7 @@ from app.schemas.common import Pagination, TaskFilter
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
+Cache = Annotated[CacheBackend, Depends(get_cache)]
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:

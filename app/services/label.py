@@ -2,16 +2,19 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import CacheBackend
 from app.core.exceptions import NotFoundError
 from app.models import Label, User, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.schemas.label import LabelCreate, LabelUpdate
 from app.services.permissions import PermissionService
+from app.services.task import tasks_cache_prefix
 
 
 class LabelService:
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, cache: CacheBackend) -> None:
         self.db = db
+        self.cache = cache
         self.repo = LabelRepository(db)
         self.perms = PermissionService(db)
 
@@ -28,11 +31,13 @@ class LabelService:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(label, field, value)
         await self.db.flush()
+        await self.cache.delete_prefix(tasks_cache_prefix(label.project_id))
         return label
 
     async def delete(self, label_id: UUID, user: User) -> None:
         label = await self._get(label_id, user)
         await self.repo.delete(label)
+        await self.cache.delete_prefix(tasks_cache_prefix(label.project_id))
 
     async def _get(self, label_id: UUID, user: User) -> Label:
         label = await self.repo.get(label_id)

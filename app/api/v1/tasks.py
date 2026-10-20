@@ -1,8 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import Cache, CurrentUser, DbSession
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.task import TaskResponse, TaskUpdate
 from app.services.comment import CommentService
@@ -12,34 +12,45 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: UUID, user: CurrentUser, db: DbSession) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).get(task_id, user))
+async def get_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> TaskResponse:
+    return TaskResponse.model_validate(await TaskService(db, cache).get(task_id, user))
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
 async def update_task(
-    task_id: UUID, data: TaskUpdate, user: CurrentUser, db: DbSession
+    task_id: UUID,
+    data: TaskUpdate,
+    background: BackgroundTasks,
+    user: CurrentUser,
+    db: DbSession,
+    cache: Cache,
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).update(task_id, data, user))
+    return TaskResponse.model_validate(
+        await TaskService(db, cache).update(task_id, data, user, background)
+    )
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession) -> None:
-    await TaskService(db).delete(task_id, user)
+async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> None:
+    await TaskService(db, cache).delete(task_id, user)
 
 
 @router.post("/{task_id}/labels/{label_id}", response_model=TaskResponse)
 async def add_label(
-    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession
+    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).add_label(task_id, label_id, user))
+    return TaskResponse.model_validate(
+        await TaskService(db, cache).add_label(task_id, label_id, user)
+    )
 
 
 @router.delete("/{task_id}/labels/{label_id}", response_model=TaskResponse)
 async def remove_label(
-    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession
+    task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
 ) -> TaskResponse:
-    return TaskResponse.model_validate(await TaskService(db).remove_label(task_id, label_id, user))
+    return TaskResponse.model_validate(
+        await TaskService(db, cache).remove_label(task_id, label_id, user)
+    )
 
 
 @router.get("/{task_id}/comments", response_model=list[CommentResponse])
