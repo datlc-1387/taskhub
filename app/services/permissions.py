@@ -33,14 +33,7 @@ class PermissionService:
     async def require_workspace(
         self, workspace_id: UUID, user: User, min_role: WorkspaceRole = WorkspaceRole.VIEWER
     ) -> Workspace:
-        workspace = await self.workspaces.get(workspace_id)
-        if workspace is None:
-            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
-        role = await self.role_in_workspace(workspace_id, user)
-        if role is None:
-            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
-        if ROLE_RANK[role] < ROLE_RANK[min_role]:
-            raise ForbiddenError(messages.ROLE_REQUIRED.format(role=min_role))
+        workspace, _ = await self._require_role(workspace_id, user, min_role)
         return workspace
 
     async def require_project(
@@ -55,8 +48,34 @@ class PermissionService:
     async def require_task(
         self, task_id: UUID, user: User, min_role: WorkspaceRole = WorkspaceRole.VIEWER
     ) -> Task:
+        task, _ = await self.require_task_with_role(task_id, user, min_role)
+        return task
+
+    async def require_task_with_role(
+        self, task_id: UUID, user: User, min_role: WorkspaceRole = WorkspaceRole.VIEWER
+    ) -> tuple[Task, WorkspaceRole]:
         task = await self.tasks.get_with_project(task_id)
         if task is None:
             raise NotFoundError(messages.TASK_NOT_FOUND.format(task_id=task_id))
-        await self.require_workspace(task.project.workspace_id, user, min_role)
-        return task
+        _, role = await self._require_role(task.project.workspace_id, user, min_role)
+        return task, role
+
+    @staticmethod
+    def require_author_or_role(
+        user: User, author_id: UUID, role: WorkspaceRole, min_role: WorkspaceRole, message: str
+    ) -> None:
+        if author_id != user.id and ROLE_RANK[role] < ROLE_RANK[min_role]:
+            raise ForbiddenError(message)
+
+    async def _require_role(
+        self, workspace_id: UUID, user: User, min_role: WorkspaceRole
+    ) -> tuple[Workspace, WorkspaceRole]:
+        workspace = await self.workspaces.get(workspace_id)
+        if workspace is None:
+            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
+        role = await self.role_in_workspace(workspace_id, user)
+        if role is None:
+            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
+        if ROLE_RANK[role] < ROLE_RANK[min_role]:
+            raise ForbiddenError(messages.ROLE_REQUIRED.format(role=min_role))
+        return workspace, role

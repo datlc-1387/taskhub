@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import messages
-from app.core.exceptions import ForbiddenError, NotFoundError
-from app.models import Comment, User, UserRole, WorkspaceRole
+from app.core.exceptions import NotFoundError
+from app.models import Comment, User, WorkspaceRole
 from app.repositories.comment import CommentRepository
 from app.schemas.comment import CommentCreate
 from app.services.permissions import PermissionService
@@ -27,12 +27,11 @@ class CommentService:
         )
 
     async def delete(self, task_id: UUID, comment_id: UUID, user: User) -> None:
-        task = await self.perms.require_task(task_id, user)
+        _, role = await self.perms.require_task_with_role(task_id, user)
         comment = await self.repo.get(comment_id)
         if comment is None or comment.task_id != task_id:
             raise NotFoundError(messages.COMMENT_NOT_FOUND.format(comment_id=comment_id))
-        role = await self.perms.role_in_workspace(task.project.workspace_id, user)
-        is_owner = role == WorkspaceRole.OWNER or user.role == UserRole.ADMIN
-        if comment.author_id != user.id and not is_owner:
-            raise ForbiddenError(messages.COMMENT_DELETE_FORBIDDEN)
+        self.perms.require_author_or_role(
+            user, comment.author_id, role, WorkspaceRole.OWNER, messages.COMMENT_DELETE_FORBIDDEN
+        )
         await self.repo.delete(comment)

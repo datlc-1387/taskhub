@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import messages
 from app.core.cache import CacheBackend
 from app.core.config import get_settings
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from app.models import Label, Task, User, UserRole, WorkspaceRole
+from app.core.exceptions import ConflictError, NotFoundError
+from app.models import Label, Task, User, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
@@ -93,12 +93,10 @@ class TaskService:
         return task
 
     async def delete(self, task_id: UUID, user: User) -> None:
-        task = await self.perms.require_task(task_id, user)
-        role = await self.perms.role_in_workspace(task.project.workspace_id, user)
-        is_editor = role in (WorkspaceRole.OWNER, WorkspaceRole.EDITOR)
-        is_privileged = is_editor or user.role == UserRole.ADMIN
-        if not is_privileged and task.created_by != user.id:
-            raise ForbiddenError(messages.TASK_DELETE_FORBIDDEN)
+        task, role = await self.perms.require_task_with_role(task_id, user)
+        self.perms.require_author_or_role(
+            user, task.created_by, role, WorkspaceRole.EDITOR, messages.TASK_DELETE_FORBIDDEN
+        )
         await self.repo.delete(task)
         await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
 
