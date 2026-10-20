@@ -5,6 +5,18 @@
   "python.testing.pytestArgs": ["tests"],
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true
-  }
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit",
+      "source.fixAll.ruff": "explicit"
+    }
+  },
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    { "name": "fastapi", "depth": 2 },
+    { "name": "sqlalchemy", "depth": 3 },
+    { "name": "pydantic", "depth": 2 },
+    { "name": "starlette", "depth": 2 }
+  ]
 }
