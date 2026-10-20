@@ -5,7 +5,9 @@ from typing import Literal
 import bcrypt
 import jwt
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
+from app.core import messages
 from app.core.config import get_settings
 
 TokenType = Literal["access", "refresh"]
@@ -22,12 +24,15 @@ class TokenPayload(BaseModel):
         return uuid.UUID(self.sub)
 
 
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+# bcrypt is slow on purpose and CPU-bound: run it in a worker thread so the event loop
+# keeps serving other requests meanwhile.
+async def hash_password(password: str) -> str:
+    hashed = await run_in_threadpool(bcrypt.hashpw, password.encode(), bcrypt.gensalt())
+    return hashed.decode()
 
 
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
+async def verify_password(password: str, hashed: str) -> bool:
+    return await run_in_threadpool(bcrypt.checkpw, password.encode(), hashed.encode())
 
 
 def create_token(
@@ -59,10 +64,16 @@ def decode_token(token: str, expected_type: TokenType) -> TokenPayload:
     try:
         data = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
     except jwt.ExpiredSignatureError as exc:
-        raise ValueError("The token has expired") from exc
+        raise ValueError(messages.TOKEN_EXPIRED) from exc
     except jwt.InvalidTokenError as exc:
-        raise ValueError("Invalid token") from exc
-    payload = TokenPayload.model_validate(data)
+        raise ValueError(messages.TOKEN_INVALID) from exc
+    try:
+        payload = TokenPayload.model_validate(data)
+        uuid.UUID(payload.sub)
+    except ValueError as exc:
+        raise ValueError(messages.TOKEN_INVALID) from exc
     if payload.type != expected_type:
-        raise ValueError(f"Need {expected_type} token, but received {payload.type} token")
+        raise ValueError(
+            messages.TOKEN_WRONG_TYPE.format(expected=expected_type, actual=payload.type)
+        )
     return payload

@@ -1,7 +1,9 @@
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.config import get_settings
 from app.core.exceptions import ConflictError, UnauthorizedError
 from app.core.security import (
@@ -12,7 +14,8 @@ from app.core.security import (
     verify_password,
 )
 from app.models import RefreshToken, User
-from app.repositories.user import RefreshTokenRepository, UserRepository
+from app.repositories.refresh_token import RefreshTokenRepository
+from app.repositories.user import UserRepository
 from app.schemas.auth import RegisterRequest, TokenResponse
 
 
@@ -24,28 +27,36 @@ class AuthService:
 
     async def register(self, data: RegisterRequest) -> User:
         if await self.users.get_user_by_email(data.email) is not None:
-            raise ConflictError("Email already registered")
+            raise ConflictError(messages.EMAIL_ALREADY_REGISTERED)
         user = User(
-            email=data.email, full_name=data.full_name, hashed_password=hash_password(data.password)
+            email=data.email,
+            full_name=data.full_name,
+            hashed_password=await hash_password(data.password),
         )
-        return await self.users.add(user)
+        try:
+            return await self.users.add(user)
+        except IntegrityError as exc:
+            raise ConflictError(messages.EMAIL_ALREADY_REGISTERED) from exc
 
     async def login(self, email: str, password: str) -> TokenResponse:
         user = await self.users.get_user_by_email(email)
-        if user is None or not verify_password(password, user.hashed_password):
-            raise UnauthorizedError("Incorrect email or password")
+        if user is None or not await verify_password(password, user.hashed_password):
+            raise UnauthorizedError(messages.INCORRECT_CREDENTIALS)
         if not user.is_active:
-            raise UnauthorizedError("Your account has been locked")
+            raise UnauthorizedError(messages.ACCOUNT_LOCKED)
         return await self._issue_tokens(user.id)
 
     async def refresh(self, refresh_token: str) -> TokenResponse:
-        stored = await self._validate_refresh(refresh_token)
-        stored.revoked = True
-        return await self._issue_tokens(stored.user_id)
+        user_id = await self._revoke_refresh(refresh_token)
+        user = await self.users.get(user_id)
+        if user is None:
+            raise UnauthorizedError(messages.TOKEN_USER_NOT_FOUND)
+        if not user.is_active:
+            raise UnauthorizedError(messages.ACCOUNT_LOCKED)
+        return await self._issue_tokens(user_id)
 
     async def logout(self, refresh_token: str) -> None:
-        stored = await self._validate_refresh(refresh_token)
-        stored.revoked = True
+        await self._revoke_refresh(refresh_token)
 
     async def _issue_tokens(self, user_id: UUID) -> TokenResponse:
         access_token, _ = create_access_token(user_id)
@@ -59,12 +70,12 @@ class AuthService:
             expires_in=get_settings().access_token_expire_minutes * 60,
         )
 
-    async def _validate_refresh(self, refresh_token: str) -> RefreshToken:
+    async def _revoke_refresh(self, refresh_token: str) -> UUID:
         try:
             payload = decode_token(refresh_token, expected_type="refresh")
         except ValueError as exc:
             raise UnauthorizedError(str(exc)) from exc
-        stored = await self.tokens.get_by_jti(payload.jti)
-        if stored is None or stored.revoked:
-            raise UnauthorizedError("The refresh token has been revoked")
-        return stored
+        user_id = await self.tokens.revoke_if_active(payload.jti)
+        if user_id is None:
+            raise UnauthorizedError(messages.REFRESH_TOKEN_REVOKED)
+        return user_id

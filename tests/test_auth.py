@@ -1,5 +1,9 @@
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core import messages
+from app.models import User
 from tests.conftest import register_and_login
 
 
@@ -81,6 +85,28 @@ async def test_access_token_cannot_be_used_as_refresh(client: AsyncClient) -> No
     access = headers["Authorization"].removeprefix("Bearer ")
     res = await client.post("/api/v1/auth/refresh", json={"refresh_token": access})
     assert res.status_code == 401
+
+
+async def test_locked_user_cannot_refresh(client: AsyncClient, engine: AsyncEngine) -> None:
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "grace@example.com", "full_name": "Grace", "password": "secret123"},
+    )
+    login = await client.post(
+        "/api/v1/auth/login", data={"username": "grace@example.com", "password": "secret123"}
+    )
+    tokens = login.json()
+    async with engine.begin() as conn:
+        await conn.execute(
+            update(User).where(User.email == "grace@example.com").values(is_active=False)
+        )
+
+    res = await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    assert res.status_code == 401
+    assert res.json()["error"]["message"] == messages.ACCOUNT_LOCKED
+
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    assert (await client.get("/api/v1/users/me", headers=headers)).status_code == 403
 
 
 async def test_change_password_revokes_refresh_tokens(client: AsyncClient) -> None:

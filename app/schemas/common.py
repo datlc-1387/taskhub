@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core import messages
+from app.core.constants import PASSWORD_MAX_LENGTH
 from app.models import TaskPriority, TaskStatus
 
 
@@ -33,10 +35,8 @@ class ORMModel(BaseModel):
 
 
 def check_password_bytes(value: str) -> str:
-    if len(value.encode("utf-8")) > 72:
-        raise ValueError(
-            "Maximum password length is 72 bytes (approximately 72 unaccented characters)"
-        )
+    if len(value.encode("utf-8")) > PASSWORD_MAX_LENGTH:
+        raise ValueError(messages.PASSWORD_TOO_LONG.format(max_bytes=PASSWORD_MAX_LENGTH))
 
     return value
 

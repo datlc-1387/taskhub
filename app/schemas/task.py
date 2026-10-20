@@ -3,14 +3,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.core.constants import TASK_DESCRIPTION_MAX_LENGTH, TASK_TITLE_MAX_LENGTH
 from app.models.enums import TaskPriority, TaskStatus
 from app.schemas.common import ORMModel
 from app.schemas.label import LabelResponse
 
 
 class TaskCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=5000)
+    title: str = Field(min_length=1, max_length=TASK_TITLE_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=TASK_DESCRIPTION_MAX_LENGTH)
     priority: TaskPriority = TaskPriority.MEDIUM
     due_date: datetime | None = None
     assignee_id: UUID | None = None
@@ -18,8 +19,8 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=5000)
+    title: str | None = Field(default=None, min_length=1, max_length=TASK_TITLE_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=TASK_DESCRIPTION_MAX_LENGTH)
     status: TaskStatus | None = None
     priority: TaskPriority | None = None
     due_date: datetime | None = None
