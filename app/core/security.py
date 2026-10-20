@@ -6,6 +6,7 @@ import bcrypt
 import jwt
 from pydantic import BaseModel
 
+from app.core import messages
 from app.core.config import get_settings
 
 TokenType = Literal["access", "refresh"]
@@ -59,10 +60,12 @@ def decode_token(token: str, expected_type: TokenType) -> TokenPayload:
     try:
         data = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
     except jwt.ExpiredSignatureError as exc:
-        raise ValueError("The token has expired") from exc
+        raise ValueError(messages.TOKEN_EXPIRED) from exc
     except jwt.InvalidTokenError as exc:
-        raise ValueError("Invalid token") from exc
+        raise ValueError(messages.TOKEN_INVALID) from exc
     payload = TokenPayload.model_validate(data)
     if payload.type != expected_type:
-        raise ValueError(f"Need {expected_type} token, but received {payload.type} token")
+        raise ValueError(
+            messages.TOKEN_WRONG_TYPE.format(expected=expected_type, actual=payload.type)
+        )
     return payload

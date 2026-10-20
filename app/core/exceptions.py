@@ -6,6 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core import messages
+
 logger = logging.getLogger("taskhub.errors")
 
 
@@ -64,7 +66,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         ]
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            content=error_body("validation_error", "Invalid data", details),
+            content=error_body("validation_error", messages.INVALID_DATA, details),
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -80,5 +82,5 @@ def register_exception_handlers(app: FastAPI) -> None:
         logger.exception("Unhandled error", exc_info=exc)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=error_body("internal_error", "Internal server error. Please try again later."),
+            content=error_body("internal_error", messages.INTERNAL_ERROR),
         )

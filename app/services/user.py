@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.exceptions import UnauthorizedError
 from app.core.security import hash_password, verify_password
 from app.models import User
@@ -20,6 +21,6 @@ class UserService:
 
     async def change_password(self, user: User, data: ChangePasswordRequest) -> None:
         if not verify_password(data.current_password, user.hashed_password):
-            raise UnauthorizedError("The current password is incorrect")
+            raise UnauthorizedError(messages.CURRENT_PASSWORD_INCORRECT)
         user.hashed_password = hash_password(data.new_password)
         await self.tokens.revoke_all_for_user(user.id)

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.config import get_settings
 from app.core.exceptions import ConflictError, UnauthorizedError
 from app.core.security import (
@@ -25,7 +26,7 @@ class AuthService:
 
     async def register(self, data: RegisterRequest) -> User:
         if await self.users.get_user_by_email(data.email) is not None:
-            raise ConflictError("Email already registered")
+            raise ConflictError(messages.EMAIL_ALREADY_REGISTERED)
         user = User(
             email=data.email, full_name=data.full_name, hashed_password=hash_password(data.password)
         )
@@ -34,9 +35,9 @@ class AuthService:
     async def login(self, email: str, password: str) -> TokenResponse:
         user = await self.users.get_user_by_email(email)
         if user is None or not verify_password(password, user.hashed_password):
-            raise UnauthorizedError("Incorrect email or password")
+            raise UnauthorizedError(messages.INCORRECT_CREDENTIALS)
         if not user.is_active:
-            raise UnauthorizedError("Your account has been locked")
+            raise UnauthorizedError(messages.ACCOUNT_LOCKED)
         return await self._issue_tokens(user.id)
 
     async def refresh(self, refresh_token: str) -> TokenResponse:
@@ -67,5 +68,5 @@ class AuthService:
             raise UnauthorizedError(str(exc)) from exc
         stored = await self.tokens.get_by_jti(payload.jti)
         if stored is None or stored.revoked:
-            raise UnauthorizedError("The refresh token has been revoked")
+            raise UnauthorizedError(messages.REFRESH_TOKEN_REVOKED)
         return stored

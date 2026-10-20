@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.cache import CacheBackend
 from app.core.exceptions import NotFoundError
 from app.models import Label, User, WorkspaceRole
@@ -42,6 +43,6 @@ class LabelService:
     async def _get(self, label_id: UUID, user: User) -> Label:
         label = await self.repo.get(label_id)
         if label is None:
-            raise NotFoundError(f"Label {label_id} does not exist.")
+            raise NotFoundError(messages.LABEL_NOT_FOUND.format(label_id=label_id))
         await self.perms.require_project(label.project_id, user, WorkspaceRole.EDITOR)
         return label

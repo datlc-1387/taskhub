@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.cache import CacheBackend
 from app.core.config import get_settings
 from app.core.exceptions import ForbiddenError, NotFoundError
@@ -94,7 +95,7 @@ class TaskService:
         is_editor = role in (WorkspaceRole.OWNER, WorkspaceRole.EDITOR)
         is_privileged = is_editor or user.role == UserRole.ADMIN
         if not is_privileged and task.created_by != user.id:
-            raise ForbiddenError("Only EDITOR/OWNER or the creator can delete the task")
+            raise ForbiddenError(messages.TASK_DELETE_FORBIDDEN)
         await self.repo.delete(task)
         await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
 
@@ -118,21 +119,20 @@ class TaskService:
 
     async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> None:
         if await self.workspaces.get_member(workspace_id, user_id) is None:
-            raise NotFoundError(f"User {user_id} is not a member of the workspace")
+            raise NotFoundError(messages.USER_NOT_MEMBER.format(user_id=user_id))
 
     async def _labels_in_project(self, label_ids: list[UUID], project_id: UUID) -> list[Label]:
         labels = list(await self.labels.get_many_in_project(label_ids, project_id))
         missing = set(label_ids) - {label.id for label in labels}
         if missing:
-            raise NotFoundError(
-                f"Label {', '.join(str(x) for x in sorted(missing))} do not belong to the project"
-            )
+            missing_ids = ", ".join(str(x) for x in sorted(missing))
+            raise NotFoundError(messages.LABELS_NOT_IN_PROJECT.format(label_ids=missing_ids))
         return labels
 
     async def _label_in_project(self, label_id: UUID, project_id: UUID) -> Label:
         label = await self.labels.get(label_id)
         if label is None or label.project_id != project_id:
-            raise NotFoundError(f"Label {label_id} does not belong to the project")
+            raise NotFoundError(messages.LABEL_NOT_IN_PROJECT.format(label_id=label_id))
         return label
 
     async def _notify_assignee(self, task: Task, actor: User, background: BackgroundTasks) -> None:

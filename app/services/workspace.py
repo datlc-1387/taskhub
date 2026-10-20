@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models import User, Workspace, WorkspaceMember, WorkspaceRole
 from app.repositories.workspace import WorkspaceRepository
@@ -55,12 +56,12 @@ class WorkspaceService:
     async def add_member(self, workspace_id: UUID, data: MemberAdd, user: User) -> MemberResponse:
         await self.perms.require_workspace(workspace_id, user, WorkspaceRole.OWNER)
         if data.role == WorkspaceRole.OWNER:
-            raise ForbiddenError("Cannot grant OWNER role to another member")
+            raise ForbiddenError(messages.CANNOT_GRANT_OWNER)
         target = await self.repo.get_user(data.user_id)
         if target is None:
-            raise NotFoundError(f"User {data.user_id} doesn't exist")
+            raise NotFoundError(messages.USER_NOT_FOUND.format(user_id=data.user_id))
         if await self.repo.get_member(workspace_id, data.user_id) is not None:
-            raise ConflictError("The user is already a member of the workspace")
+            raise ConflictError(messages.USER_ALREADY_MEMBER)
         member = await self.repo.add_member(
             WorkspaceMember(workspace_id=workspace_id, user_id=data.user_id, role=data.role)
         )
@@ -77,7 +78,7 @@ class WorkspaceService:
         workspace = await self.perms.require_workspace(workspace_id, user, WorkspaceRole.OWNER)
         member = await self._get_member_or_404(workspace, member_id=member_id)
         if data.role == WorkspaceRole.OWNER or member.user_id == workspace.owner_id:
-            raise ForbiddenError("Cannot change OWNER role")
+            raise ForbiddenError(messages.CANNOT_CHANGE_OWNER_ROLE)
         member.role = data.role
         await self.db.flush()
         target = await self.repo.get_user(member_id)
@@ -93,7 +94,7 @@ class WorkspaceService:
         workspace = await self.perms.require_workspace(workspace_id, user, WorkspaceRole.OWNER)
         member = await self._get_member_or_404(workspace, member_id)
         if member.user_id == workspace.owner_id:
-            raise ForbiddenError("Cannot change or remove the workspace owner")
+            raise ForbiddenError(messages.CANNOT_CHANGE_WORKSPACE_OWNER)
         await self.repo.remove_member(member)
 
     async def list_mine(self, user: User) -> list[Workspace]:
@@ -105,5 +106,5 @@ class WorkspaceService:
     async def _get_member_or_404(self, workspace: Workspace, member_id: UUID) -> WorkspaceMember:
         member = await self.repo.get_member(workspace_id=workspace.id, user_id=member_id)
         if member is None:
-            raise NotFoundError(f"The user {member_id} does not belong to the workspace")
+            raise NotFoundError(messages.USER_NOT_MEMBER.format(user_id=member_id))
         return member

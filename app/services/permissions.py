@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import messages
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.models import Project, Task, User, UserRole, Workspace, WorkspaceRole
 from app.repositories.project import ProjectRepository
@@ -34,12 +35,12 @@ class PermissionService:
     ) -> Workspace:
         workspace = await self.workspaces.get(workspace_id)
         if workspace is None:
-            raise NotFoundError(f"Workspace {workspace_id} does not exist.")
+            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
         role = await self.role_in_workspace(workspace_id, user)
         if role is None:
-            raise NotFoundError(f"Workspace {workspace_id} does not exist.")
+            raise NotFoundError(messages.WORKSPACE_NOT_FOUND.format(workspace_id=workspace_id))
         if ROLE_RANK[role] < ROLE_RANK[min_role]:
-            raise ForbiddenError(f"Requires the {min_role} role or higher within the workspace")
+            raise ForbiddenError(messages.ROLE_REQUIRED.format(role=min_role))
         return workspace
 
     async def require_project(
@@ -47,7 +48,7 @@ class PermissionService:
     ) -> Project:
         project = await self.projects.get(project_id)
         if project is None:
-            raise NotFoundError(f"Project {project_id} does not exist.")
+            raise NotFoundError(messages.PROJECT_NOT_FOUND.format(project_id=project_id))
         await self.require_workspace(project.workspace_id, user, min_role)
         return project
 
@@ -56,6 +57,6 @@ class PermissionService:
     ) -> Task:
         task = await self.tasks.get_with_project(task_id)
         if task is None:
-            raise NotFoundError(f"Task {task_id} does not exist.")
+            raise NotFoundError(messages.TASK_NOT_FOUND.format(task_id=task_id))
         await self.require_workspace(task.project.workspace_id, user, min_role)
         return task
