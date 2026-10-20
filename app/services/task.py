@@ -2,12 +2,13 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import BackgroundTasks
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import messages
 from app.core.cache import CacheBackend
 from app.core.config import get_settings
-from app.core.exceptions import ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models import Label, Task, User, UserRole, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
@@ -104,19 +105,24 @@ class TaskService:
     async def add_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
         task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
         label = await self._label_in_project(label_id, task.project_id)
-        if label not in task.labels:
-            task.labels.append(label)
+        if label in task.labels:
+            raise ConflictError(messages.LABEL_ALREADY_ON_TASK.format(label_id=label_id))
+        task.labels.append(label)
+        try:
             await self.db.flush()
-            await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
+        except IntegrityError as exc:  # another request attached the same label meanwhile
+            raise ConflictError(messages.LABEL_ALREADY_ON_TASK.format(label_id=label_id)) from exc
+        await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
         return task
 
     async def remove_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
         task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
         label = await self._label_in_project(label_id, task.project_id)
-        if label in task.labels:
-            task.labels.remove(label)
-            await self.db.flush()
-            await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
+        if label not in task.labels:
+            raise NotFoundError(messages.LABEL_NOT_ON_TASK.format(label_id=label_id))
+        task.labels.remove(label)
+        await self.db.flush()
+        await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
         return task
 
     async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> None:
