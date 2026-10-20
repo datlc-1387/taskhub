@@ -2,13 +2,14 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import BackgroundTasks
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import messages
 from app.core.cache import CacheBackend
 from app.core.config import get_settings
-from app.core.exceptions import ForbiddenError, NotFoundError
-from app.models import Label, Task, User, UserRole, WorkspaceRole
+from app.core.exceptions import ConflictError, NotFoundError
+from app.models import Label, Task, User, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
@@ -55,7 +56,9 @@ class TaskService:
     async def create(
         self, project_id: UUID, data: TaskCreate, user: User, background: BackgroundTasks
     ) -> Task:
-        project = await self.perms.require_project(project_id, user, WorkspaceRole.EDITOR)
+        project = await self.perms.require_project(
+            project_id, user, WorkspaceRole.EDITOR, writable=True
+        )
         if data.assignee_id is not None:
             await self._ensure_member(project.workspace_id, data.assignee_id)
         labels = await self._labels_in_project(data.label_ids, project_id)
@@ -77,7 +80,7 @@ class TaskService:
     async def update(
         self, task_id: UUID, data: TaskUpdate, user: User, background: BackgroundTasks
     ) -> Task:
-        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
+        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR, writable=True)
         changes = data.model_dump(exclude_unset=True)
         new_assignee = changes.get("assignee_id")
         assignee_changed = "assignee_id" in changes and new_assignee != task.assignee_id
@@ -92,31 +95,34 @@ class TaskService:
         return task
 
     async def delete(self, task_id: UUID, user: User) -> None:
-        task = await self.perms.require_task(task_id, user)
-        role = await self.perms.role_in_workspace(task.project.workspace_id, user)
-        is_editor = role in (WorkspaceRole.OWNER, WorkspaceRole.EDITOR)
-        is_privileged = is_editor or user.role == UserRole.ADMIN
-        if not is_privileged and task.created_by != user.id:
-            raise ForbiddenError(messages.TASK_DELETE_FORBIDDEN)
+        task, role = await self.perms.require_task_with_role(task_id, user, writable=True)
+        self.perms.require_author_or_role(
+            user, task.created_by, role, WorkspaceRole.EDITOR, messages.TASK_DELETE_FORBIDDEN
+        )
         await self.repo.delete(task)
         await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
 
     async def add_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
-        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
+        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR, writable=True)
         label = await self._label_in_project(label_id, task.project_id)
-        if label not in task.labels:
-            task.labels.append(label)
+        if label in task.labels:
+            raise ConflictError(messages.LABEL_ALREADY_ON_TASK.format(label_id=label_id))
+        task.labels.append(label)
+        try:
             await self.db.flush()
-            await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
+        except IntegrityError as exc:  # another request attached the same label meanwhile
+            raise ConflictError(messages.LABEL_ALREADY_ON_TASK.format(label_id=label_id)) from exc
+        await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
         return task
 
     async def remove_label(self, task_id: UUID, label_id: UUID, user: User) -> Task:
-        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR)
+        task = await self.perms.require_task(task_id, user, WorkspaceRole.EDITOR, writable=True)
         label = await self._label_in_project(label_id, task.project_id)
-        if label in task.labels:
-            task.labels.remove(label)
-            await self.db.flush()
-            await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
+        if label not in task.labels:
+            raise NotFoundError(messages.LABEL_NOT_ON_TASK.format(label_id=label_id))
+        task.labels.remove(label)
+        await self.db.flush()
+        await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
         return task
 
     async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> None:

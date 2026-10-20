@@ -91,3 +91,35 @@ async def test_archive_and_delete_project(
     assert res.status_code == 200 and res.json()["status"] == "ARCHIVED"
     assert (await client.delete(f"/api/v1/projects/{project}", headers=owner)).status_code == 204
     assert (await client.get(f"/api/v1/projects/{project}", headers=owner)).status_code == 404
+
+
+async def test_archived_project_is_read_only(
+    client: AsyncClient, owner: dict[str, str], project: str
+) -> None:
+    label = await client.post(
+        f"/api/v1/projects/{project}/labels", json={"name": "bug"}, headers=owner
+    )
+    task = await client.post(
+        f"/api/v1/projects/{project}/tasks", json={"title": "T"}, headers=owner
+    )
+    task_id, label_id = task.json()["id"], label.json()["id"]
+    assert (
+        await client.post(f"/api/v1/projects/{project}/archive", headers=owner)
+    ).status_code == 200
+
+    writes = [
+        client.post(f"/api/v1/projects/{project}/tasks", json={"title": "New"}, headers=owner),
+        client.patch(f"/api/v1/tasks/{task_id}", json={"title": "Renamed"}, headers=owner),
+        client.post(f"/api/v1/tasks/{task_id}/labels/{label_id}", headers=owner),
+        client.post(f"/api/v1/tasks/{task_id}/comments", json={"content": "hi"}, headers=owner),
+        client.post(f"/api/v1/projects/{project}/labels", json={"name": "x"}, headers=owner),
+        client.delete(f"/api/v1/tasks/{task_id}", headers=owner),
+    ]
+    for request in writes:
+        res = await request
+        assert res.status_code == 409, res.text
+        assert res.json()["error"]["code"] == "conflict"
+
+    # reads still work
+    assert (await client.get(f"/api/v1/tasks/{task_id}", headers=owner)).status_code == 200
+    assert (await client.get(f"/api/v1/projects/{project}/tasks", headers=owner)).status_code == 200

@@ -32,10 +32,13 @@ CANNOT_CHANGE_WORKSPACE_OWNER = "Cannot change or remove the workspace owner"
 
 # Projects, tasks, labels and comments
 PROJECT_NOT_FOUND = "Project {project_id} does not exist"
+PROJECT_ARCHIVED = "Project {project_id} is archived; its tasks, labels and comments are read-only"
 TASK_NOT_FOUND = "Task {task_id} does not exist"
 TASK_DELETE_FORBIDDEN = "Only EDITOR/OWNER or the creator can delete the task"
 LABEL_NOT_FOUND = "Label {label_id} does not exist"
 LABEL_NOT_IN_PROJECT = "Label {label_id} does not belong to the project"
 LABELS_NOT_IN_PROJECT = "Labels {label_ids} do not belong to the project"
+LABEL_ALREADY_ON_TASK = "Label {label_id} is already attached to the task"
+LABEL_NOT_ON_TASK = "Label {label_id} is not attached to the task"
 COMMENT_NOT_FOUND = "Comment {comment_id} does not exist"
 COMMENT_DELETE_FORBIDDEN = "Only the author or the OWNER can delete a comment"

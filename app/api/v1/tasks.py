@@ -11,12 +11,16 @@ from app.services.task import TaskService
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskResponse, summary="Get a task")
 async def get_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> TaskResponse:
     return TaskResponse.model_validate(await TaskService(db, cache).get(task_id, user))
 
 
-@router.patch("/{task_id}", response_model=TaskResponse)
+@router.patch(
+    "/{task_id}",
+    response_model=TaskResponse,
+    summary="Update a task: title, status, priority, due date, assignee (EDITOR)",
+)
 async def update_task(
     task_id: UUID,
     data: TaskUpdate,
@@ -30,12 +34,20 @@ async def update_task(
     )
 
 
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a task (EDITOR or the task creator)",
+)
 async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> None:
     await TaskService(db, cache).delete(task_id, user)
 
 
-@router.post("/{task_id}/labels/{label_id}", response_model=TaskResponse)
+@router.post(
+    "/{task_id}/labels/{label_id}",
+    response_model=TaskResponse,
+    summary="Attach a label of the same project to a task (EDITOR)",
+)
 async def add_label(
     task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
 ) -> TaskResponse:
@@ -44,7 +56,11 @@ async def add_label(
     )
 
 
-@router.delete("/{task_id}/labels/{label_id}", response_model=TaskResponse)
+@router.delete(
+    "/{task_id}/labels/{label_id}",
+    response_model=TaskResponse,
+    summary="Detach a label from a task (EDITOR)",
+)
 async def remove_label(
     task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
 ) -> TaskResponse:
@@ -53,14 +69,21 @@ async def remove_label(
     )
 
 
-@router.get("/{task_id}/comments", response_model=list[CommentResponse])
+@router.get(
+    "/{task_id}/comments",
+    response_model=list[CommentResponse],
+    summary="List the comments of a task",
+)
 async def get_comments(task_id: UUID, user: CurrentUser, db: DbSession) -> list[CommentResponse]:
     items = await CommentService(db).list_for_task(task_id, user)
     return [CommentResponse.model_validate(comment) for comment in items]
 
 
 @router.post(
-    "/{task_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED
+    "/{task_id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a comment to a task (any member)",
 )
 async def add_comment(
     task_id: UUID, data: CommentCreate, user: CurrentUser, db: DbSession
@@ -68,6 +91,10 @@ async def add_comment(
     return CommentResponse.model_validate(await CommentService(db).add(task_id, data, user))
 
 
-@router.delete("/{task_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{task_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a comment (its author or OWNER)",
+)
 async def delete_comment(task_id: UUID, comment_id: UUID, user: CurrentUser, db: DbSession) -> None:
     await CommentService(db).delete(task_id, comment_id, user)

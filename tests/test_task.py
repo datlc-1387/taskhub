@@ -52,6 +52,8 @@ async def test_task_crud_with_labels_and_assignee(
 
     res = await client.delete(f"/api/v1/tasks/{task['id']}/labels/{label_id}", headers=member)
     assert res.status_code == 200 and res.json()["labels"] == []
+    res = await client.delete(f"/api/v1/tasks/{task['id']}/labels/{label_id}", headers=member)
+    assert res.status_code == 404
 
     assert (await client.delete(f"/api/v1/tasks/{task['id']}", headers=owner)).status_code == 204
     assert (await client.get(f"/api/v1/tasks/{task['id']}", headers=owner)).status_code == 404
