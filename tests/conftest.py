@@ -2,6 +2,7 @@ import os
 
 os.environ["MAIL_ENABLED"] = "false"
 os.environ["DB_ECHO"] = "false"
+os.environ.setdefault("SECRET_KEY", "test-secret-key-only-for-pytest-0123456789")
 
 from collections.abc import AsyncIterator
 

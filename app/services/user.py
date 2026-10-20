@@ -20,7 +20,7 @@ class UserService:
         return user
 
     async def change_password(self, user: User, data: ChangePasswordRequest) -> None:
-        if not verify_password(data.current_password, user.hashed_password):
+        if not await verify_password(data.current_password, user.hashed_password):
             raise UnauthorizedError(messages.CURRENT_PASSWORD_INCORRECT)
-        user.hashed_password = hash_password(data.new_password)
+        user.hashed_password = await hash_password(data.new_password)
         await self.tokens.revoke_all_for_user(user.id)

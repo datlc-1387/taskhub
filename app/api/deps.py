@@ -24,9 +24,9 @@ Cache = Annotated[CacheBackend, Depends(get_cache)]
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
     try:
         payload = decode_token(token, expected_type="access")
+        user = await UserRepository(db).get(payload.user_id)
     except ValueError as exc:
         raise UnauthorizedError(str(exc)) from exc
-    user = await UserRepository(db).get(payload.user_id)
     if user is None:
         raise UnauthorizedError(messages.TOKEN_USER_NOT_FOUND)
     if not user.is_active:

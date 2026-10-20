@@ -14,9 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://taskhub:taskhub@localhost:5432/taskhub"
     db_echo: bool = True
 
-    secret_key: str = Field(
-        default="dev-only-secret-key-change-me-in-production-0123456789", min_length=32
-    )
+    secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -45,4 +43,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # pyright: ignore[reportCallIssue]  # values come from env / .env
