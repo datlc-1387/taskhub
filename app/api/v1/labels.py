@@ -9,13 +9,19 @@ from app.services.label import LabelService
 router = APIRouter(prefix="/labels", tags=["Labels"])
 
 
-@router.patch("/{label_id}", response_model=LabelResponse)
+@router.patch(
+    "/{label_id}", response_model=LabelResponse, summary="Rename or recolor a label (EDITOR)"
+)
 async def update_label(
     label_id: UUID, data: LabelUpdate, user: CurrentUser, db: DbSession, cache: Cache
 ) -> LabelResponse:
     return LabelResponse.model_validate(await LabelService(db, cache).update(label_id, data, user))
 
 
-@router.delete("/{label_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{label_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a label and detach it from all tasks (EDITOR)",
+)
 async def delete_label(label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> None:
     await LabelService(db, cache).delete(label_id, user)
