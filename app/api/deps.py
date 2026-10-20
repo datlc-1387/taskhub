@@ -12,7 +12,7 @@ from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import decode_token
 from app.db.session import get_db
-from app.models import TaskPriority, TaskStatus, User, UserRole
+from app.models import TaskPriority, TaskStatus, User
 from app.repositories.user import UserRepository
 from app.schemas.common import Pagination
 from app.schemas.task import TaskFilter
@@ -37,15 +37,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-async def require_admin(user: CurrentUser) -> User:
-    if user.role != UserRole.ADMIN:
-        raise ForbiddenError(messages.ADMIN_REQUIRED)
-    return user
-
-
-AdminUser = Annotated[User, Depends(require_admin)]
 
 
 def get_pagination(
