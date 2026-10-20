@@ -12,7 +12,8 @@ from app.core.security import (
     verify_password,
 )
 from app.models import RefreshToken, User
-from app.repositories.user import RefreshTokenRepository, UserRepository
+from app.repositories.refresh_token import RefreshTokenRepository
+from app.repositories.user import UserRepository
 from app.schemas.auth import RegisterRequest, TokenResponse
 
 
