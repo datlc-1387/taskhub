@@ -57,7 +57,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 docker compose up -d --build
 ```
 
-This starts 4 containers: `db` (PostgreSQL), `redis`, `mailpit` and `app`. When the `app` container starts, `docker-entrypoint.sh` runs `alembic upgrade head` and then launches Gunicorn with 4 workers.
+This starts 4 containers: `db` (PostgreSQL), `redis`, `mailpit` and `app`. When the `app` container starts, `docker-entrypoint.sh` runs `alembic upgrade head` and then launches Gunicorn with `WEB_CONCURRENCY` workers (default 4).
 
 ```bash
 docker compose ps              # app becomes (healthy) after a few seconds
@@ -209,6 +209,7 @@ Sent with `BackgroundTasks` after the response is returned; only when the assign
 - **Constants and messages**: validation limits live in `core/constants.py` and every error message returned to clients in `core/messages.py`.
 - **Middleware**: every response has `X-Request-ID` and `X-Process-Time-Ms`, one access log line per request. CORS only allows origins in `CORS_ORIGINS`.
 - **Docker**: multi-stage build (no uv or dev dependencies in the image), non-root user, HEALTHCHECK, no secrets in the image (compose injects them at runtime). Migrations run in the entrypoint because there is one instance; with several instances they should move to a `migrate` service. The base image still has a few unfixed Debian/Python vulnerabilities (0 critical); rebuild regularly with `--pull`.
+- **Database connections**: every Gunicorn worker is a separate process with its own pool, so the total is `WEB_CONCURRENCY` (default 4) × (`DB_POOL_SIZE` + `DB_MAX_OVERFLOW`, default 5 + 5) = 40 connections, well below Postgres's default `max_connections=100`. Change these numbers together.
 
 ## Limitations and future work
 

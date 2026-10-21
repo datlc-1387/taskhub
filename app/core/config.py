@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://taskhub:taskhub@localhost:5432/taskhub"
     db_echo: bool = True
+    db_pool_size: int = Field(default=5, ge=1)
+    db_max_overflow: int = Field(default=5, ge=0)
 
     secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
