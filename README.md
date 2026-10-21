@@ -154,7 +154,7 @@ Every error (including validation errors and 500s) uses the same format:
 | 9 | Cache + invalidation | `core/cache.py`, `services/task.py`, `services/label.py` |
 | 10 | Email on task assignment (background task) | `services/notifications.py`, `services/task.py` |
 | 11 | Resource-based access control (RBAC) | `services/permissions.py`, `api/deps.py` |
-| 12 | Complete Swagger/ReDoc | `main.py`, `core/openapi.py` |
+| 12 | Complete Swagger/ReDoc | `main.py`, `core/openapi.py`, `api/responses.py` |
 | 13 | `docker compose up` | `Dockerfile`, `docker-entrypoint.sh`, `docker-compose.yml` |
 | 14 | Ruff + mypy pass | `pyproject.toml` |
 
@@ -205,7 +205,7 @@ Sent with `BackgroundTasks` after the response is returned; only when the assign
 ### Other
 
 - **Archiving a project** makes it read-only: creating, updating or deleting its tasks, labels and comments returns 409. Reading still works, and the project itself can still be renamed or deleted. The check runs after the permission check, so non-members still get 404.
-- **Error responses in Swagger/ReDoc are generated** (`core/openapi.py`): authenticated endpoint → 401/403, `{id}` in path → 404, any input → 422; specific errors such as 409 are declared by hand.
+- **Error responses in Swagger/ReDoc are generated** (`core/openapi.py`): authenticated endpoint → 401/403 (403 includes locked accounts), `{id}` in path → 404, any input → 422, all with the `ErrorResponse` schema. Responses declared on an endpoint are never overwritten; 409 (duplicates, archived project) and the more specific 401 cases (login, refresh, change password) are declared per endpoint with helpers from `api/responses.py`.
 - **Constants and messages**: validation limits live in `core/constants.py` and every error message returned to clients in `core/messages.py`.
 - **Middleware**: every response has `X-Request-ID` and `X-Process-Time-Ms`, one access log line per request. CORS only allows origins in `CORS_ORIGINS`.
 - **Docker**: multi-stage build (no uv or dev dependencies in the image), non-root user, HEALTHCHECK, no secrets in the image (compose injects them at runtime). Migrations run in the entrypoint because there is one instance; with several instances they should move to a `migrate` service. The base image still has a few unfixed Debian/Python vulnerabilities (0 critical); rebuild regularly with `--pull`.

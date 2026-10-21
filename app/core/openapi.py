@@ -38,10 +38,13 @@ def install_error_responses(app: FastAPI) -> None:
                     codes.append("422")
                 responses = operation.setdefault("responses", {})
                 for code in codes:
-                    responses[code] = {
-                        "description": _ERROR_DESCRIPTIONS[code],
-                        "content": error_content,
-                    }
+                    default = {"description": _ERROR_DESCRIPTIONS[code], "content": error_content}
+                    if code == "422":
+                        responses[code] = default
+                    else:
+                        responses.setdefault(code, default)
+        schema["components"]["schemas"].pop("HTTPValidationError", None)
+        schema["components"]["schemas"].pop("ValidationError", None)
         return schema
 
     app.openapi = openapi  # type: ignore[method-assign]

@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from app.api.deps import Cache, CurrentUser, DbSession
+from app.api.responses import PROJECT_ARCHIVED
 from app.schemas.label import LabelResponse, LabelUpdate
 from app.services.label import LabelService
 
@@ -10,7 +11,10 @@ router = APIRouter(prefix="/labels", tags=["Labels"])
 
 
 @router.patch(
-    "/{label_id}", response_model=LabelResponse, summary="Rename or recolor a label (EDITOR)"
+    "/{label_id}",
+    response_model=LabelResponse,
+    summary="Rename or recolor a label (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def update_label(
     label_id: UUID, data: LabelUpdate, user: CurrentUser, db: DbSession, cache: Cache
@@ -22,6 +26,7 @@ async def update_label(
     "/{label_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a label and detach it from all tasks (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def delete_label(label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> None:
     await LabelService(db, cache).delete(label_id, user)

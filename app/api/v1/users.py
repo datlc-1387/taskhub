@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.api.responses import error_response
 from app.schemas.user import ChangePasswordRequest, UserResponse, UserUpdate
 from app.services.user import UserService
 
@@ -17,6 +18,12 @@ async def update_me(data: UserUpdate, user: CurrentUser, db: DbSession) -> UserR
     return UserResponse.model_validate(await UserService(db).update_profile(user, data))
 
 
-@router.post("/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/me/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=error_response(
+        401, "Missing or invalid access token, or the current password is incorrect"
+    ),
+)
 async def change_password(data: ChangePasswordRequest, user: CurrentUser, db: DbSession) -> None:
     await UserService(db).change_password(user, data)
