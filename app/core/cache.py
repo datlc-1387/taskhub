@@ -40,8 +40,10 @@ class InMemoryCache:
 
 
 class RedisCache:
-    def __init__(self, url: str) -> None:
-        self._redis: Redis = Redis.from_url(url, decode_responses=True)
+    def __init__(self, url: str, timeout: float) -> None:
+        self._redis: Redis = Redis.from_url(
+            url, decode_responses=True, socket_timeout=timeout, socket_connect_timeout=timeout
+        )
 
     async def get(self, key: str) -> Any | None:
         try:
@@ -59,8 +61,9 @@ class RedisCache:
 
     async def delete_prefix(self, prefix: str) -> None:
         try:
-            async for key in self._redis.scan_iter(match=f"{prefix}*"):
-                await self._redis.delete(key)
+            keys = [key async for key in self._redis.scan_iter(match=f"{prefix}*", count=500)]
+            if keys:
+                await self._redis.unlink(*keys)
         except RedisError:
             logger.warning("Redis unavailable, could not invalidate %s", prefix)
 
@@ -71,6 +74,7 @@ _cache: CacheBackend | None = None
 def get_cache() -> CacheBackend:
     global _cache
     if _cache is None:
-        url = get_settings().redis_url
-        _cache = RedisCache(url) if url else InMemoryCache()
+        settings = get_settings()
+        url = settings.redis_url
+        _cache = RedisCache(url, settings.redis_timeout_seconds) if url else InMemoryCache()
     return _cache

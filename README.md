@@ -195,7 +195,7 @@ Duplicates (email, workspace membership, label on a task) are blocked by unique 
 
 - Only the task list is cached (the most frequent and heaviest endpoint). Key `tasks:{project_id}:{filters}:{page}:{limit}`, TTL 60 seconds.
 - Any write to tasks/labels deletes all `tasks:{project_id}:*` keys, leaving other projects untouched.
-- If Redis is down the cache is skipped and the DB is read directly, with a warning logged.
+- If Redis is down, or does not answer within `REDIS_TIMEOUT_SECONDS` (default 0.5 s), the cache is skipped and the DB is read directly, with a warning logged.
 - **Limitation**: the cache is cleared before the transaction commits, so stale data may survive for up to 60 seconds; the full fix is to invalidate after commit.
 
 ### Email

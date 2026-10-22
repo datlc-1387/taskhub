@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = Field(default=6379, ge=1, le=65535)
     redis_password: str | None = None
+    redis_timeout_seconds: float = Field(default=0.5, gt=0)
     cache_ttl_seconds: int = 60
 
     cors_origins: list[str] = ["http://localhost:3000"]
