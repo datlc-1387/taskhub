@@ -12,12 +12,13 @@ async def send_assignment_email(to_email: str, task_title: str, assigned_by: str
     settings = get_settings()
     if not settings.mail_enabled:
         return
-    message = EmailMessage()
-    message["From"] = settings.smtp_from
-    message["To"] = to_email
-    message["Subject"] = f"You are assigned task: {task_title}"
-    message.set_content(f'{assigned_by} has just assigned task "{task_title}" to you.')
+    title = " ".join(task_title.splitlines())
     try:
+        message = EmailMessage()
+        message["From"] = settings.smtp_from
+        message["To"] = to_email
+        message["Subject"] = f"You are assigned task: {title}"
+        message.set_content(f'{assigned_by} has just assigned task "{title}" to you.')
         await aiosmtplib.send(
             message,
             hostname=settings.smtp_host,
@@ -27,5 +28,5 @@ async def send_assignment_email(to_email: str, task_title: str, assigned_by: str
             start_tls=settings.smtp_starttls,
         )
         logger.info("Sent assignment email to %s", to_email)
-    except (aiosmtplib.SMTPException, OSError):
+    except (aiosmtplib.SMTPException, OSError, ValueError):
         logger.exception("Failed to send assignment email to %s", to_email)

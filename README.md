@@ -97,7 +97,7 @@ uv run ruff format --check .
 uv run mypy app
 ```
 
-The tests are integration tests that call the real API through `httpx.AsyncClient`, using in-memory SQLite and an in-memory cache, so Postgres and Redis do **not** need to be running. Email sending is disabled with `MAIL_ENABLED=false` and the email function is checked with `monkeypatch`. There are currently 25 tests covering auth, workspaces, tasks, cache and email.
+The tests are integration tests that call the real API through `httpx.AsyncClient`, using in-memory SQLite and an in-memory cache, so Postgres and Redis do **not** need to be running. Email sending is disabled with `MAIL_ENABLED=false` and the email function is checked with `monkeypatch`. There are currently 26 tests covering auth, workspaces, tasks, cache and email.
 
 ## API
 
