@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://taskhub:taskhub@localhost:5432/taskhub"
     db_echo: bool = True
+    db_pool_size: int = Field(default=5, ge=1)
+    db_max_overflow: int = Field(default=5, ge=0)
 
     secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
@@ -22,6 +24,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = Field(default=6379, ge=1, le=65535)
     redis_password: str | None = None
+    redis_timeout_seconds: float = Field(default=0.5, gt=0)
     cache_ttl_seconds: int = 60
 
     cors_origins: list[str] = ["http://localhost:3000"]

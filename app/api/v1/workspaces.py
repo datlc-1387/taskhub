@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.schemas.common import ErrorResponse
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.workspace import (
     MemberAdd,
@@ -83,6 +84,7 @@ async def list_members(
     response_model=MemberResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add a member as EDITOR or VIEWER (OWNER)",
+    responses={409: {"model": ErrorResponse, "description": "User is already a member"}},
 )
 async def add_member(
     workspace_id: UUID, data: MemberAdd, user: CurrentUser, db: DbSession

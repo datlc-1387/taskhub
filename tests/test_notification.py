@@ -1,6 +1,10 @@
+from email.message import EmailMessage
+
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import get_settings
+from app.services.notifications import send_assignment_email
 from tests.conftest import user_id_of
 
 
@@ -37,3 +41,19 @@ async def test_assignment_email_sent_only_when_assignee_changes(
     await client.patch(f"/api/v1/tasks/{task_id}", json={"title": "T2"}, headers=owner)
     await client.patch(f"/api/v1/tasks/{task_id}", json={"status": "IN_PROGRESS"}, headers=owner)
     assert sent == ["member@example.com"]  # editing other fields must not resend
+
+
+async def test_assignment_email_with_multiline_title(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[EmailMessage] = []
+
+    async def fake_smtp_send(message: EmailMessage, **kwargs: object) -> None:
+        sent.append(message)
+
+    monkeypatch.setattr(get_settings(), "mail_enabled", True)
+    monkeypatch.setattr("app.services.notifications.aiosmtplib.send", fake_smtp_send)
+
+    await send_assignment_email("a@example.com", "Fix bug\nBcc: evil@example.com", "Owner")
+
+    assert len(sent) == 1
+    assert sent[0]["Subject"] == "You are assigned task: Fix bug Bcc: evil@example.com"
+    assert sent[0]["Bcc"] is None

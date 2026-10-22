@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.deps import Cache, CurrentUser, DbSession
+from app.api.responses import LABEL_CONFLICT, PROJECT_ARCHIVED
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.task import TaskResponse, TaskUpdate
 from app.services.comment import CommentService
@@ -20,6 +21,7 @@ async def get_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
     "/{task_id}",
     response_model=TaskResponse,
     summary="Update a task: title, status, priority, due date, assignee (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def update_task(
     task_id: UUID,
@@ -38,6 +40,7 @@ async def update_task(
     "/{task_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a task (EDITOR or the task creator)",
+    responses=PROJECT_ARCHIVED,
 )
 async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Cache) -> None:
     await TaskService(db, cache).delete(task_id, user)
@@ -47,6 +50,7 @@ async def delete_task(task_id: UUID, user: CurrentUser, db: DbSession, cache: Ca
     "/{task_id}/labels/{label_id}",
     response_model=TaskResponse,
     summary="Attach a label of the same project to a task (EDITOR)",
+    responses=LABEL_CONFLICT,
 )
 async def add_label(
     task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
@@ -60,6 +64,7 @@ async def add_label(
     "/{task_id}/labels/{label_id}",
     response_model=TaskResponse,
     summary="Detach a label from a task (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def remove_label(
     task_id: UUID, label_id: UUID, user: CurrentUser, db: DbSession, cache: Cache
@@ -84,6 +89,7 @@ async def get_comments(task_id: UUID, user: CurrentUser, db: DbSession) -> list[
     response_model=CommentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Add a comment to a task (any member)",
+    responses=PROJECT_ARCHIVED,
 )
 async def add_comment(
     task_id: UUID, data: CommentCreate, user: CurrentUser, db: DbSession
@@ -95,6 +101,7 @@ async def add_comment(
     "/{task_id}/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a comment (its author or OWNER)",
+    responses=PROJECT_ARCHIVED,
 )
 async def delete_comment(task_id: UUID, comment_id: UUID, user: CurrentUser, db: DbSession) -> None:
     await CommentService(db).delete(task_id, comment_id, user)

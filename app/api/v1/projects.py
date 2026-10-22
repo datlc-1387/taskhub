@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.deps import Cache, CurrentUser, DbSession, PageParams, TaskFilterParams
+from app.api.responses import PROJECT_ARCHIVED
 from app.schemas.common import Page
 from app.schemas.label import LabelCreate, LabelResponse
 from app.schemas.project import ProjectResponse, ProjectUpdate
@@ -69,6 +70,7 @@ async def list_tasks(
     response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a task, optionally assigned and labeled (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def create_task(
     project_id: UUID,
@@ -100,6 +102,7 @@ async def list_labels(
     response_model=LabelResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a label in a project (EDITOR)",
+    responses=PROJECT_ARCHIVED,
 )
 async def create_label(
     project_id: UUID, data: LabelCreate, user: CurrentUser, db: DbSession, cache: Cache

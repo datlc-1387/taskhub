@@ -3,6 +3,7 @@ import logging
 import time
 from typing import Any, Protocol
 
+from fastapi import BackgroundTasks
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
@@ -40,8 +41,10 @@ class InMemoryCache:
 
 
 class RedisCache:
-    def __init__(self, url: str) -> None:
-        self._redis: Redis = Redis.from_url(url, decode_responses=True)
+    def __init__(self, url: str, timeout: float) -> None:
+        self._redis: Redis = Redis.from_url(
+            url, decode_responses=True, socket_timeout=timeout, socket_connect_timeout=timeout
+        )
 
     async def get(self, key: str) -> Any | None:
         try:
@@ -59,10 +62,26 @@ class RedisCache:
 
     async def delete_prefix(self, prefix: str) -> None:
         try:
-            async for key in self._redis.scan_iter(match=f"{prefix}*"):
-                await self._redis.delete(key)
+            keys = [key async for key in self._redis.scan_iter(match=f"{prefix}*", count=500)]
+            if keys:
+                await self._redis.unlink(*keys)
         except RedisError:
             logger.warning("Redis unavailable, could not invalidate %s", prefix)
+
+
+class AfterCommitCache:
+    def __init__(self, cache: CacheBackend, background: BackgroundTasks) -> None:
+        self._cache = cache
+        self._background = background
+
+    async def get(self, key: str) -> Any | None:
+        return await self._cache.get(key)
+
+    async def set(self, key: str, value: Any, ttl: int) -> None:
+        await self._cache.set(key, value, ttl)
+
+    async def delete_prefix(self, prefix: str) -> None:
+        self._background.add_task(self._cache.delete_prefix, prefix)
 
 
 _cache: CacheBackend | None = None
@@ -71,6 +90,7 @@ _cache: CacheBackend | None = None
 def get_cache() -> CacheBackend:
     global _cache
     if _cache is None:
-        url = get_settings().redis_url
-        _cache = RedisCache(url) if url else InMemoryCache()
+        settings = get_settings()
+        url = settings.redis_url
+        _cache = RedisCache(url, settings.redis_timeout_seconds) if url else InMemoryCache()
     return _cache

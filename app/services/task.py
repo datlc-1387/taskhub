@@ -12,7 +12,6 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.models import Label, Task, User, WorkspaceRole
 from app.repositories.label import LabelRepository
 from app.repositories.task import TaskRepository
-from app.repositories.user import UserRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.common import Page, Pagination
 from app.schemas.task import TaskCreate, TaskFilter, TaskResponse, TaskUpdate
@@ -31,7 +30,6 @@ class TaskService:
         self.repo = TaskRepository(db)
         self.perms = PermissionService(db)
         self.workspaces = WorkspaceRepository(db)
-        self.users = UserRepository(db)
         self.labels = LabelRepository(db)
 
     async def list_in_project(
@@ -59,8 +57,9 @@ class TaskService:
         project = await self.perms.require_project(
             project_id, user, WorkspaceRole.EDITOR, writable=True
         )
+        assignee: User | None = None
         if data.assignee_id is not None:
-            await self._ensure_member(project.workspace_id, data.assignee_id)
+            assignee = await self._ensure_member(project.workspace_id, data.assignee_id)
         labels = await self._labels_in_project(data.label_ids, project_id)
         task = Task(
             project_id=project_id,
@@ -70,8 +69,8 @@ class TaskService:
         )
         task = await self.repo.add(task)
         await self.cache.delete_prefix(tasks_cache_prefix(project_id))
-        if task.assignee_id is not None:
-            await self._notify_assignee(task, user, background)
+        if assignee is not None:
+            await self._notify_assignee(task, assignee, user, background)
         return task
 
     async def get(self, task_id: UUID, user: User) -> Task:
@@ -84,14 +83,15 @@ class TaskService:
         changes = data.model_dump(exclude_unset=True)
         new_assignee = changes.get("assignee_id")
         assignee_changed = "assignee_id" in changes and new_assignee != task.assignee_id
+        assignee: User | None = None
         if assignee_changed and new_assignee is not None:
-            await self._ensure_member(task.project.workspace_id, new_assignee)
+            assignee = await self._ensure_member(task.project.workspace_id, new_assignee)
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(task, field, value)
         await self.db.flush()
         await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
-        if assignee_changed and task.assignee_id is not None:
-            await self._notify_assignee(task, user, background)
+        if assignee is not None:
+            await self._notify_assignee(task, assignee, user, background)
         return task
 
     async def delete(self, task_id: UUID, user: User) -> None:
@@ -125,9 +125,11 @@ class TaskService:
         await self.cache.delete_prefix(tasks_cache_prefix(task.project_id))
         return task
 
-    async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> None:
-        if await self.workspaces.get_member(workspace_id, user_id) is None:
+    async def _ensure_member(self, workspace_id: UUID, user_id: UUID) -> User:
+        member = await self.workspaces.get_member_with_user(workspace_id, user_id)
+        if member is None:
             raise NotFoundError(messages.USER_NOT_MEMBER.format(user_id=user_id))
+        return member.user
 
     async def _labels_in_project(self, label_ids: list[UUID], project_id: UUID) -> list[Label]:
         labels = list(await self.labels.get_many_in_project(label_ids, project_id))
@@ -143,8 +145,7 @@ class TaskService:
             raise NotFoundError(messages.LABEL_NOT_IN_PROJECT.format(label_id=label_id))
         return label
 
-    async def _notify_assignee(self, task: Task, actor: User, background: BackgroundTasks) -> None:
-        assert task.assignee_id is not None
-        assignee = await self.users.get(task.assignee_id)
-        if assignee is not None:
-            background.add_task(send_assignment_email, assignee.email, task.title, actor.full_name)
+    async def _notify_assignee(
+        self, task: Task, assignee: User, actor: User, background: BackgroundTasks
+    ) -> None:
+        background.add_task(send_assignment_email, assignee.email, task.title, actor.full_name)

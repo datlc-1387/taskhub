@@ -1,5 +1,8 @@
+import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import InMemoryCache
 from tests.conftest import user_id_of
 
 
@@ -162,3 +165,26 @@ async def test_viewer_can_comment_but_not_edit_task(
         await client.delete(f"/api/v1/tasks/{task['id']}/comments/{other['id']}", headers=owner)
     ).status_code == 204
     assert (await client.get(f"/api/v1/tasks/{task['id']}/comments", headers=owner)).json() == []
+
+
+async def test_cache_is_invalidated_after_commit(
+    client: AsyncClient, owner: dict[str, str], project: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    original_commit = AsyncSession.commit
+    original_delete = InMemoryCache.delete_prefix
+
+    async def commit(self: AsyncSession) -> None:
+        events.append("commit")
+        await original_commit(self)
+
+    async def delete_prefix(self: InMemoryCache, prefix: str) -> None:
+        events.append("invalidate")
+        await original_delete(self, prefix)
+
+    monkeypatch.setattr(AsyncSession, "commit", commit)
+    monkeypatch.setattr(InMemoryCache, "delete_prefix", delete_prefix)
+
+    res = await client.post(f"/api/v1/projects/{project}/tasks", json={"title": "T"}, headers=owner)
+    assert res.status_code == 201
+    assert events == ["commit", "invalidate"]

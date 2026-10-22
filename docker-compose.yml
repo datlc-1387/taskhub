@@ -68,5 +68,29 @@ services:
       retries: 5
     mem_limit: 128m
 
+  app:
+    <<: *hardening
+    build: .
+    image: taskhub-api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-taskhub}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-taskhub}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      DEBUG: "false"
+      DB_ECHO: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    mem_limit: 512m
+
 volumes:
   pgdata:
