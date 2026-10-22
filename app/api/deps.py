@@ -1,12 +1,12 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Query
+from fastapi import BackgroundTasks, Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import messages
-from app.core.cache import CacheBackend, get_cache
+from app.core.cache import AfterCommitCache, CacheBackend, get_cache
 from app.core.config import get_settings
 from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.exceptions import ForbiddenError, UnauthorizedError
@@ -19,7 +19,15 @@ from app.schemas.task import TaskFilter
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
-Cache = Annotated[CacheBackend, Depends(get_cache)]
+
+
+def get_request_cache(
+    cache: Annotated[CacheBackend, Depends(get_cache)], background: BackgroundTasks
+) -> CacheBackend:
+    return AfterCommitCache(cache, background)
+
+
+Cache = Annotated[CacheBackend, Depends(get_request_cache)]
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:

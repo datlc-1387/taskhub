@@ -97,7 +97,7 @@ uv run ruff format --check .
 uv run mypy app
 ```
 
-The tests are integration tests that call the real API through `httpx.AsyncClient`, using in-memory SQLite and an in-memory cache, so Postgres and Redis do **not** need to be running. Email sending is disabled with `MAIL_ENABLED=false` and the email function is checked with `monkeypatch`. There are currently 26 tests covering auth, workspaces, tasks, cache and email.
+The tests are integration tests that call the real API through `httpx.AsyncClient`, using in-memory SQLite and an in-memory cache, so Postgres and Redis do **not** need to be running. Email sending is disabled with `MAIL_ENABLED=false` and the email function is checked with `monkeypatch`. There are currently 27 tests covering auth, workspaces, tasks, cache and email.
 
 ## API
 
@@ -194,9 +194,9 @@ Duplicates (email, workspace membership, label on a task) are blocked by unique 
 ### Cache
 
 - Only the task list is cached (the most frequent and heaviest endpoint). Key `tasks:{project_id}:{filters}:{page}:{limit}`, TTL 60 seconds.
-- Any write to tasks/labels deletes all `tasks:{project_id}:*` keys, leaving other projects untouched.
+- Any write to tasks/labels deletes all `tasks:{project_id}:*` keys (one `SCAN` pass and a single `UNLINK`), leaving other projects untouched. The deletion runs as a background task, i.e. **after** the transaction commits, so a list request cannot re-cache the old data while the write is still uncommitted (`AfterCommitCache` in `core/cache.py`).
 - If Redis is down, or does not answer within `REDIS_TIMEOUT_SECONDS` (default 0.5 s), the cache is skipped and the DB is read directly, with a warning logged.
-- **Limitation**: the cache is cleared before the transaction commits, so stale data may survive for up to 60 seconds; the full fix is to invalidate after commit.
+- **Limitation**: a list request that reads the DB before the commit but writes the cache after the invalidation can still store stale data for up to the TTL. This needs unusually slow timing; per-project version keys would close it completely.
 
 ### Email
 
@@ -213,7 +213,7 @@ Sent with `BackgroundTasks` after the response is returned; only when the assign
 
 ## Limitations and future work
 
-- Invalidate the cache after commit instead of before.
+- Per-project cache version keys instead of `SCAN` + `UNLINK`.
 - Send the refresh token in an `httpOnly` cookie to reduce XSS risk once there is a frontend.
 - Rate-limit `/auth/login` against password guessing.
 - Move migrations to a dedicated service when running multiple instances.

@@ -3,6 +3,7 @@ import logging
 import time
 from typing import Any, Protocol
 
+from fastapi import BackgroundTasks
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
@@ -66,6 +67,21 @@ class RedisCache:
                 await self._redis.unlink(*keys)
         except RedisError:
             logger.warning("Redis unavailable, could not invalidate %s", prefix)
+
+
+class AfterCommitCache:
+    def __init__(self, cache: CacheBackend, background: BackgroundTasks) -> None:
+        self._cache = cache
+        self._background = background
+
+    async def get(self, key: str) -> Any | None:
+        return await self._cache.get(key)
+
+    async def set(self, key: str, value: Any, ttl: int) -> None:
+        await self._cache.set(key, value, ttl)
+
+    async def delete_prefix(self, prefix: str) -> None:
+        self._background.add_task(self._cache.delete_prefix, prefix)
 
 
 _cache: CacheBackend | None = None
